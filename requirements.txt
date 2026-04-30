@@ -1,0 +1,8 @@
+openai
+requests
+beautifulsoup4
+gspread
+google-auth
+python-docx
+streamlit
+python-dotenv
