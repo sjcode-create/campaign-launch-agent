@@ -39,16 +39,18 @@ if uploaded_file:
                 st.subheader("Email Copy")
                 st.markdown("**Subject Line**")
                 st.info(result["subject"])
-                st.markdown("**Core Email Body**")
+                st.markdown("**Email Body**")
                 st.write(result["body"])
 
-                if result.get("versions"):
+                # Only show audience variations if there are multiple audiences
+                if result.get("versions") and len(result.get("audiences", [])) > 1:
                     st.divider()
                     st.subheader("Audience Variations")
                     st.markdown("*These opening lines replace the first sentence of the email for each audience.*")
                     for audience, version in result["versions"].items():
-                        st.markdown(f"**{audience}**")
-                        st.write(version)
+                        if version:
+                            st.markdown(f"**{audience}**")
+                            st.write(version)
 
                 st.divider()
                 col1, col2 = st.columns(2)
