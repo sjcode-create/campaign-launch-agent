@@ -1,8 +1,8 @@
 import streamlit as st
 import tempfile
 import os
+import sys
 
-# Load secrets into environment before importing campaign_agent
 if "ANTHROPIC_API_KEY" in st.secrets:
     os.environ["ANTHROPIC_API_KEY"] = st.secrets["ANTHROPIC_API_KEY"]
 if "TAVILY_API_KEY" in st.secrets:
@@ -10,6 +10,7 @@ if "TAVILY_API_KEY" in st.secrets:
 if "OPENAI_API_KEY" in st.secrets:
     os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
 
+sys.path.insert(0, '/mount/src/campaign-launch-agent')
 from campaign_agent import read_brief_from_doc, run_campaign_agent
 
 st.set_page_config(page_title="Windstar Campaign Agent", page_icon="🚢", layout="wide")
@@ -35,49 +36,50 @@ if uploaded_file:
                 st.success("Campaign package complete!")
                 st.divider()
 
+                st.subheader("Email Copy")
+                st.markdown("**Subject Line**")
+                st.info(result["subject"])
+                st.markdown("**Core Email Body**")
+                st.write(result["body"])
+
+                if result.get("versions"):
+                    st.divider()
+                    st.subheader("Audience Variations")
+                    st.markdown("*These opening lines replace the first sentence of the email for each audience.*")
+                    for audience, version in result["versions"].items():
+                        st.markdown(f"**{audience}**")
+                        st.write(version)
+
+                st.divider()
                 col1, col2 = st.columns(2)
 
                 with col1:
-                    st.subheader("Email Copy")
-                    st.markdown(f"**Subject Line**")
-                    st.info(result["subject"])
-                    st.markdown(f"**Email Body**")
-                    st.write(result["body"])
-
-                with col2:
                     st.subheader("Strategy")
-                    st.markdown(f"**Target Audience**")
+                    st.markdown("**Target Audience**")
                     st.write(result["audience"])
-                    st.markdown(f"**Key Message**")
+                    st.markdown("**Key Message**")
                     st.write(result["message"])
 
-                st.divider()
-                st.subheader("Channel Angles")
-                col3, col4 = st.columns(2)
-
-                with col3:
+                with col2:
+                    st.subheader("Channel Angles")
                     st.markdown("**Paid Social**")
                     st.write(result["social_angle"])
                     st.markdown("**Direct Mail**")
                     st.write(result["mail_angle"])
-
-                with col4:
                     st.markdown("**SMS**")
                     st.write(result["sms_angle"])
-                    st.markdown("**Email Angle**")
-                    st.write(result["email_angle"])
 
                 st.divider()
                 st.subheader("Research Context")
-                col5, col6 = st.columns(2)
+                col3, col4 = st.columns(2)
 
-                with col5:
+                with col3:
                     st.markdown("**Actual Conditions**")
                     st.write(result["conditions"])
                     st.markdown("**Experiential Highlights**")
                     st.write(result["highlights"])
 
-                with col6:
+                with col4:
                     st.markdown("**Travel Advisories**")
                     st.write(result["advisories"])
                     st.markdown("**Traveler Sentiment**")
