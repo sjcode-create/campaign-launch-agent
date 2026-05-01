@@ -6,7 +6,6 @@ from tavily import TavilyClient
 
 load_dotenv()
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-tavily = TavilyClient(api_key=os.environ.get("TAVILY_API_KEY"))
 
 print("Campaign Launch Agent ready!")
 
@@ -66,6 +65,9 @@ def orchestrator(brief):
 
 def researcher_agent(brief):
     print(f"\nResearcher Agent searching for current travel context...")
+
+    # Initialize Tavily here so secrets are already loaded
+    tavily = TavilyClient(api_key=os.environ.get("TAVILY_API_KEY"))
 
     search_query_raw = call_claude(
         "Extract the destination and travel months from a campaign brief. Return only a short search query, no markdown.",
@@ -185,7 +187,7 @@ def copywriter_agent(copy_task, email_angle, key_message, conditions, highlights
             "Write in plain text only, no markdown or asterisks."
         ),
         (
-            f"Complete this copy task. Write the full complete email — do not truncate or use ellipsis.\n\n"
+            f"Complete this copy task. Write the full complete email, do not truncate.\n\n"
             f"1. EMAIL SUBJECT: A compelling premium subject line\n"
             f"2. EMAIL BODY: Full promotional email with opening hook, 2-3 paragraphs, and a CTA at the end.\n\n"
             f"Research context:\n"

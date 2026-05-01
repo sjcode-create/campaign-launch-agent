@@ -1,6 +1,15 @@
 import streamlit as st
 import tempfile
 import os
+
+# Load secrets into environment before importing campaign_agent
+if "ANTHROPIC_API_KEY" in st.secrets:
+    os.environ["ANTHROPIC_API_KEY"] = st.secrets["ANTHROPIC_API_KEY"]
+if "TAVILY_API_KEY" in st.secrets:
+    os.environ["TAVILY_API_KEY"] = st.secrets["TAVILY_API_KEY"]
+if "OPENAI_API_KEY" in st.secrets:
+    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+
 from campaign_agent import read_brief_from_doc, run_campaign_agent
 
 st.set_page_config(page_title="Windstar Campaign Agent", page_icon="🚢", layout="wide")
@@ -24,7 +33,6 @@ if uploaded_file:
                 result = run_campaign_agent(brief)
 
                 st.success("Campaign package complete!")
-
                 st.divider()
 
                 col1, col2 = st.columns(2)
@@ -44,7 +52,6 @@ if uploaded_file:
                     st.write(result["message"])
 
                 st.divider()
-
                 st.subheader("Channel Angles")
                 col3, col4 = st.columns(2)
 
@@ -61,7 +68,6 @@ if uploaded_file:
                     st.write(result["email_angle"])
 
                 st.divider()
-
                 st.subheader("Research Context")
                 col5, col6 = st.columns(2)
 
@@ -78,7 +84,6 @@ if uploaded_file:
                     st.write(result["sentiment"])
 
                 st.divider()
-
                 st.subheader("Critic Review")
                 score_col, rest_col = st.columns([1, 3])
 
