@@ -92,24 +92,24 @@ def researcher_agent(brief):
     try:
         conditions_result = tavily.search(query=f"{search_query} weather climate", search_depth="basic", max_results=2)
         sentiment_result = tavily.search(query=f"{search_query} traveler reviews 2026", search_depth="basic", max_results=2)
-        advisories_result = tavily.search(query=f"{search_query} travel advisory 2026", search_depth="basic", max_results=2)
+        advisories_result = tavily.search(query=f"{search_query} travel advisory political safety 2026", search_depth="basic", max_results=3)
 
         conditions_text = " ".join([r.get("content", "") for r in conditions_result.get("results", [])])[:800]
         sentiment_text = " ".join([r.get("content", "") for r in sentiment_result.get("results", [])])[:800]
-        advisories_text = " ".join([r.get("content", "") for r in advisories_result.get("results", [])])[:800]
+        advisories_text = " ".join([r.get("content", "") for r in advisories_result.get("results", [])])[:1200]
 
     except Exception as e:
         print(f"  Search error: {str(e)}")
         conditions_text = sentiment_text = advisories_text = ""
 
     output = call_claude(
-        "Travel analyst. One short sentence per field. Plain text only.",
+        "Travel analyst for a luxury cruise brand. Plain text only, no markdown, no dashes.",
         (
-            f"One sentence each:\n\n"
-            f"ACTUAL CONDITIONS: Climate during travel months.\n"
-            f"EXPERIENTIAL HIGHLIGHTS: What makes this destination special this season.\n"
-            f"TRAVEL ADVISORIES: Any risks. If none, say no major advisories.\n"
-            f"TRAVELER SENTIMENT: What travelers are saying.\n\n"
+            f"Summarize this research. Keep each field brief but do not cut important safety or political context.\n\n"
+            f"ACTUAL CONDITIONS: One sentence on climate during travel months.\n"
+            f"EXPERIENTIAL HIGHLIGHTS: One sentence on what makes this destination special this season.\n"
+            f"TRAVEL ADVISORIES: 2-3 sentences. Cover any political instability, overtourism restrictions, port regulations, or news that could make the campaign tone-deaf. Be specific. If none, say so briefly.\n"
+            f"TRAVELER SENTIMENT: One sentence on what travelers are saying.\n\n"
             f"Brief: {brief}\n"
             f"Data: {conditions_text} {sentiment_text} {advisories_text}\n\n"
             f"Format:\n"
@@ -118,7 +118,7 @@ def researcher_agent(brief):
             f"TRAVEL ADVISORIES: ...\n"
             f"TRAVELER SENTIMENT: ..."
         ),
-        max_tokens=250
+        max_tokens=400
     )
 
     conditions = parse_field(output, 'ACTUAL CONDITIONS')
@@ -127,19 +127,20 @@ def researcher_agent(brief):
     sentiment = parse_field(output, 'TRAVELER SENTIMENT')
 
     print(f"  Conditions: {conditions}")
-    print(f"  Highlights: {highlights}")
+    print(f"  Advisories: {advisories}")
 
     return conditions, highlights, advisories, sentiment
 
 
-def strategist_agent(strategy_task, conditions, highlights, sentiment):
+def strategist_agent(strategy_task, conditions, highlights, sentiment, brief):
     print(f"\nStrategist Agent working...")
 
     output = call_claude(
-        "Marketing strategist. One sentence per field. No exceptions. Plain text only.",
+        "Marketing strategist. One sentence per field. No dashes. Plain text only. Always use the exact year mentioned in the brief.",
         (
-            f"One sentence per field. Be direct.\n\n"
+            f"One sentence per field. Use the correct year from the brief — do not substitute any other year.\n\n"
             f"Context: {highlights} {sentiment}\n"
+            f"Brief: {brief[:300]}\n"
             f"Task: {strategy_task}\n\n"
             f"Format:\n"
             f"TARGET AUDIENCE: ...\n"
@@ -149,7 +150,7 @@ def strategist_agent(strategy_task, conditions, highlights, sentiment):
             f"DIRECT MAIL ANGLE: ...\n"
             f"SMS ANGLE: ..."
         ),
-        max_tokens=300
+        max_tokens=400
     )
 
     audience = parse_field(output, 'TARGET AUDIENCE')
@@ -163,11 +164,11 @@ def strategist_agent(strategy_task, conditions, highlights, sentiment):
     return audience, message, email_angle, social_angle, mail_angle, sms_angle
 
 
-def copywriter_agent(copy_task, email_angle, key_message, conditions, highlights, audiences):
+def copywriter_agent(copy_task, email_angle, key_message, conditions, highlights, audiences, brief):
     print(f"\nCopywriter Agent working...")
 
     audience_instructions = {
-        "Prospects": "PROSPECTS VERSION: Opening line only. Make them feel invited into something they didn't know existed.",
+        "Prospects": "PROSPECTS VERSION: Opening line only. Make them feel invited into something they did not know existed.",
         "YCM": "YCM VERSION: Opening line only. Make them feel genuinely remembered by people, not a system.",
         "Travel Advisors": "TRAVEL ADVISORS VERSION: Opening line only. Make them feel like an insider with knowledge their clients need."
     }
@@ -184,16 +185,19 @@ def copywriter_agent(copy_task, email_angle, key_message, conditions, highlights
             "- Lead with one vivid sensory moment. No facts yet.\n"
             "- Middle paragraph: what awaits them, in feeling not features.\n"
             "- Final paragraph: the offer, simply stated. Warm CTA.\n"
+            "- Never use dashes of any kind in the email body.\n"
             "- Never use: set sail, dream vacation, adventure awaits, once in a lifetime\n"
+            "- Always use the exact year from the brief. Never substitute a different year.\n"
             "- Subject line: emotionally clear, no geography lesson required\n"
-            "- Plain text only"
+            "- Plain text only, no markdown, no dashes"
         ),
         (
-            f"Write a short promotional email. 3 paragraphs, 2-3 sentences each.\n\n"
+            f"Write a short promotional email. 3 paragraphs, 2-3 sentences each. No dashes anywhere.\n\n"
             f"Context: {highlights} {conditions}\n"
             f"Direction: {email_angle}\n"
             f"Message: {key_message}\n"
-            f"Task: {copy_task}\n\n"
+            f"Task: {copy_task}\n"
+            f"Brief year reference: {brief[:200]}\n\n"
             f"Then write one opening line variation for each audience below.\n"
             f"These replace only the first sentence of the email:\n\n"
             f"{audience_prompts}\n\n"
@@ -230,16 +234,17 @@ def critic_agent(brief, subject, body):
     print(f"\nCritic Agent reviewing...")
 
     output = call_claude(
-        "Senior marketing director. One sentence per field. Plain text only.",
+        "Senior marketing director. One sentence per field. Plain text only. Check for date accuracy.",
         (
-            f"Review this email. One sentence each.\n\n"
+            f"Review this email. One sentence each. Specifically check if any years mentioned are wrong compared to the brief.\n\n"
+            f"Brief excerpt: {brief[:200]}\n"
             f"Subject: {subject}\n"
-            f"Email: {body[:400]}\n\n"
+            f"Email: {body[:500]}\n\n"
             f"SCORE: X/10\n"
-            f"STRENGTHS: ...\n"
-            f"IMPROVEMENTS: ..."
+            f"STRENGTHS: One sentence.\n"
+            f"IMPROVEMENTS: One sentence. Flag any incorrect dates or years if present."
         ),
-        max_tokens=120
+        max_tokens=150
     )
 
     score = parse_field(output, 'SCORE')
@@ -266,8 +271,8 @@ def run_campaign_agent(brief):
 
     copy_task, strategy_task, audiences = orchestrator(brief)
     conditions, highlights, advisories, sentiment = researcher_agent(brief)
-    audience, message, email_angle, social_angle, mail_angle, sms_angle = strategist_agent(strategy_task, conditions, highlights, sentiment)
-    subject, body, versions = copywriter_agent(copy_task, email_angle, message, conditions, highlights, audiences)
+    audience, message, email_angle, social_angle, mail_angle, sms_angle = strategist_agent(strategy_task, conditions, highlights, sentiment, brief)
+    subject, body, versions = copywriter_agent(copy_task, email_angle, message, conditions, highlights, audiences, brief)
     score, strengths, improvements = critic_agent(brief, subject, body)
 
     return {
