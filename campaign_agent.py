@@ -29,8 +29,8 @@ def parse_field(output, label):
         for other_label in ['COPY TASK', 'STRATEGY TASK', 'ACTUAL CONDITIONS', 'EXPERIENTIAL HIGHLIGHTS',
                              'TRAVEL ADVISORIES', 'TRAVELER SENTIMENT', 'TARGET AUDIENCE', 'KEY MESSAGE',
                              'EMAIL ANGLE', 'PAID SOCIAL ANGLE', 'DIRECT MAIL ANGLE', 'SMS ANGLE',
-                             'EMAIL SUBJECT', 'EMAIL BODY', 'PROSPECT VERSION', 'YCM VERSION',
-                             'TRAVEL ADVISOR VERSION', 'AUDIENCES', 'SCORE', 'STRENGTHS', 'IMPROVEMENTS']:
+                             'EMAIL SUBJECT', 'EMAIL BODY', 'PROSPECTS VERSION', 'YCM VERSION',
+                             'TRAVEL ADVISORS VERSION', 'AUDIENCES', 'SCORE', 'STRENGTHS', 'IMPROVEMENTS']:
             if other_label != label and other_label + ':' in after:
                 pos = after.index(other_label + ':')
                 if pos < next_label_pos:
@@ -43,19 +43,19 @@ def orchestrator(brief):
     print(f"\nOrchestrator reading brief...")
 
     output = call_claude(
-        "You are a campaign orchestrator. Extract key information from a campaign brief concisely.",
+        "You are a campaign orchestrator. Be extremely concise.",
         (
-            f"Read this campaign brief and give me exactly 3 things:\n\n"
-            f"COPY TASK: One sentence on what copy needs to be written.\n"
-            f"STRATEGY TASK: One sentence on what strategy needs to be defined.\n"
-            f"AUDIENCES: List which of these audiences are relevant based on the brief: Prospects, YCM (Yacht Club Members / past guests), Travel Advisors. List only the ones mentioned or implied.\n\n"
+            f"Read this brief and give me 3 things in one sentence each:\n\n"
+            f"COPY TASK: What copy needs to be written.\n"
+            f"STRATEGY TASK: What strategy needs to be defined.\n"
+            f"AUDIENCES: Which apply: Prospects, YCM, Travel Advisors.\n\n"
             f"Brief: {brief}\n\n"
-            f"Format exactly like this:\n"
+            f"Format:\n"
             f"COPY TASK: ...\n"
             f"STRATEGY TASK: ...\n"
             f"AUDIENCES: ..."
         ),
-        max_tokens=300
+        max_tokens=200
     )
 
     copy_task = parse_field(output, 'COPY TASK')
@@ -63,68 +63,62 @@ def orchestrator(brief):
     audiences_raw = parse_field(output, 'AUDIENCES')
 
     audiences = []
-    if 'Prospect' in audiences_raw or 'prospect' in audiences_raw:
+    if 'prospect' in audiences_raw.lower():
         audiences.append('Prospects')
-    if 'YCM' in audiences_raw or 'past guest' in audiences_raw.lower() or 'yacht club' in audiences_raw.lower():
+    if 'ycm' in audiences_raw.lower() or 'past guest' in audiences_raw.lower() or 'yacht club' in audiences_raw.lower():
         audiences.append('YCM')
-    if 'Travel Advisor' in audiences_raw or 'travel advisor' in audiences_raw.lower():
+    if 'travel advisor' in audiences_raw.lower():
         audiences.append('Travel Advisors')
     if not audiences:
         audiences = ['Prospects']
 
-    print(f"Copy task: {copy_task[:100]}...")
-    print(f"Audiences identified: {audiences}")
-
+    print(f"Audiences: {audiences}")
     return copy_task, strategy_task, audiences
 
 
 def researcher_agent(brief):
-    print(f"\nResearcher Agent searching for current travel context...")
+    print(f"\nResearcher Agent searching...")
 
     tavily = TavilyClient(api_key=os.environ.get("TAVILY_API_KEY"))
 
     search_query_raw = call_claude(
-        "Extract the destination and travel months from a campaign brief. Return only 3-5 words.",
-        f"Extract destination and travel months as a short search query: {brief}",
-        max_tokens=30
+        "Extract destination and travel months as 3-5 words only.",
+        f"Short search query for: {brief}",
+        max_tokens=20
     )
     search_query = search_query_raw.strip()
-    print(f"  Searching for: {search_query}")
+    print(f"  Searching: {search_query}")
 
     try:
         conditions_result = tavily.search(query=f"{search_query} weather climate", search_depth="basic", max_results=2)
         sentiment_result = tavily.search(query=f"{search_query} traveler reviews 2026", search_depth="basic", max_results=2)
         advisories_result = tavily.search(query=f"{search_query} travel advisory 2026", search_depth="basic", max_results=2)
 
-        conditions_text = " ".join([r.get("content", "") for r in conditions_result.get("results", [])])[:1000]
-        sentiment_text = " ".join([r.get("content", "") for r in sentiment_result.get("results", [])])[:1000]
-        advisories_text = " ".join([r.get("content", "") for r in advisories_result.get("results", [])])[:1000]
+        conditions_text = " ".join([r.get("content", "") for r in conditions_result.get("results", [])])[:800]
+        sentiment_text = " ".join([r.get("content", "") for r in sentiment_result.get("results", [])])[:800]
+        advisories_text = " ".join([r.get("content", "") for r in advisories_result.get("results", [])])[:800]
 
     except Exception as e:
         print(f"  Search error: {str(e)}")
-        conditions_text = ""
-        sentiment_text = ""
-        advisories_text = ""
+        conditions_text = sentiment_text = advisories_text = ""
 
     output = call_claude(
-        "You are a travel analyst. One sentence per field. Plain text only, no markdown.",
+        "Travel analyst. One short sentence per field. Plain text only.",
         (
-            f"Summarize this research in one sentence per field:\n\n"
-            f"ACTUAL CONDITIONS: One sentence on climate during travel months.\n"
-            f"EXPERIENTIAL HIGHLIGHTS: One sentence on what makes this destination special this season.\n"
-            f"TRAVEL ADVISORIES: One sentence on any risks. If none, say no major advisories.\n"
-            f"TRAVELER SENTIMENT: One sentence on what travelers are saying.\n\n"
+            f"One sentence each:\n\n"
+            f"ACTUAL CONDITIONS: Climate during travel months.\n"
+            f"EXPERIENTIAL HIGHLIGHTS: What makes this destination special this season.\n"
+            f"TRAVEL ADVISORIES: Any risks. If none, say no major advisories.\n"
+            f"TRAVELER SENTIMENT: What travelers are saying.\n\n"
             f"Brief: {brief}\n"
-            f"Conditions: {conditions_text}\n"
-            f"Sentiment: {sentiment_text}\n"
-            f"Advisories: {advisories_text}\n\n"
-            f"Format exactly like this:\n"
+            f"Data: {conditions_text} {sentiment_text} {advisories_text}\n\n"
+            f"Format:\n"
             f"ACTUAL CONDITIONS: ...\n"
             f"EXPERIENTIAL HIGHLIGHTS: ...\n"
             f"TRAVEL ADVISORIES: ...\n"
             f"TRAVELER SENTIMENT: ..."
         ),
-        max_tokens=400
+        max_tokens=250
     )
 
     conditions = parse_field(output, 'ACTUAL CONDITIONS')
@@ -134,8 +128,6 @@ def researcher_agent(brief):
 
     print(f"  Conditions: {conditions}")
     print(f"  Highlights: {highlights}")
-    print(f"  Advisories: {advisories}")
-    print(f"  Sentiment: {sentiment}")
 
     return conditions, highlights, advisories, sentiment
 
@@ -144,12 +136,12 @@ def strategist_agent(strategy_task, conditions, highlights, sentiment):
     print(f"\nStrategist Agent working...")
 
     output = call_claude(
-        "You are a marketing strategist for luxury travel. Be brief. One to two sentences per field. Plain text only.",
+        "Marketing strategist. One sentence per field. No exceptions. Plain text only.",
         (
-            f"Complete this strategy. One to two sentences per field maximum.\n\n"
-            f"Context: {conditions} {highlights} {sentiment}\n\n"
+            f"One sentence per field. Be direct.\n\n"
+            f"Context: {highlights} {sentiment}\n"
             f"Task: {strategy_task}\n\n"
-            f"Format exactly like this:\n"
+            f"Format:\n"
             f"TARGET AUDIENCE: ...\n"
             f"KEY MESSAGE: ...\n"
             f"EMAIL ANGLE: ...\n"
@@ -157,7 +149,7 @@ def strategist_agent(strategy_task, conditions, highlights, sentiment):
             f"DIRECT MAIL ANGLE: ...\n"
             f"SMS ANGLE: ..."
         ),
-        max_tokens=500
+        max_tokens=300
     )
 
     audience = parse_field(output, 'TARGET AUDIENCE')
@@ -168,7 +160,6 @@ def strategist_agent(strategy_task, conditions, highlights, sentiment):
     sms_angle = parse_field(output, 'SMS ANGLE')
 
     print(f"Key message: {message}")
-
     return audience, message, email_angle, social_angle, mail_angle, sms_angle
 
 
@@ -176,21 +167,9 @@ def copywriter_agent(copy_task, email_angle, key_message, conditions, highlights
     print(f"\nCopywriter Agent working...")
 
     audience_instructions = {
-        "Prospects": (
-            "PROSPECT VERSION: They have never sailed with Windstar. "
-            "Open with something that makes them feel like they are being let in on a secret — "
-            "a world of travel they did not know existed. Make them feel welcome before they have even booked."
-        ),
-        "YCM": (
-            "YCM VERSION: They have sailed with Windstar before but have not been back in a while. "
-            "Open with something that makes them feel genuinely remembered — not by a system, but by people. "
-            "Make them feel like they belong here and that coming back is the most natural thing in the world."
-        ),
-        "Travel Advisors": (
-            "TRAVEL ADVISOR VERSION: They are travel professionals who recommend Windstar to their clients. "
-            "Open with something that reinforces why Windstar is the right recommendation — "
-            "a detail or insight that makes them feel like an insider and expert."
-        )
+        "Prospects": "PROSPECTS VERSION: Opening line only. Make them feel invited into something they didn't know existed.",
+        "YCM": "YCM VERSION: Opening line only. Make them feel genuinely remembered by people, not a system.",
+        "Travel Advisors": "TRAVEL ADVISORS VERSION: Opening line only. Make them feel like an insider with knowledge their clients need."
     }
 
     audience_prompts = "\n".join([audience_instructions[a] for a in audiences if a in audience_instructions])
@@ -198,34 +177,32 @@ def copywriter_agent(copy_task, email_angle, key_message, conditions, highlights
 
     output = call_claude(
         (
-            "You are a copywriter for Windstar Cruises. Tagline: 180 from ordinary.\n\n"
-            "Every guest should feel four things: welcome, special, like they belong, and excited about a unique experience.\n\n"
-            "Windstar greets every guest by name. The crew knows your preferences before you ask.\n"
-            "You sail into ports larger ships cannot enter. You are never one of thousands.\n\n"
-            "Rules:\n"
-            "- Lead with feeling, not facts\n"
+            "Expert copywriter for Windstar Cruises. Tagline: 180 from ordinary.\n\n"
+            "The reader should feel: welcome, special, like they belong, excited.\n\n"
+            "Email rules:\n"
+            "- 3 short paragraphs. 2-3 sentences each. That is the entire email.\n"
+            "- Lead with one vivid sensory moment. No facts yet.\n"
+            "- Middle paragraph: what awaits them, in feeling not features.\n"
+            "- Final paragraph: the offer, simply stated. Warm CTA.\n"
             "- Never use: set sail, dream vacation, adventure awaits, once in a lifetime\n"
-            "- Subject line must be emotionally clear — no ambiguity, no geography lesson required\n"
-            "- Each version shares the same core email body — only the opening line and closing CTA change\n"
-            "- Plain text only, no markdown"
+            "- Subject line: emotionally clear, no geography lesson required\n"
+            "- Plain text only"
         ),
         (
-            f"Write one promotional email campaign with audience-specific variations.\n\n"
-            f"Destination context: {highlights}\n"
-            f"Current conditions: {conditions}\n"
-            f"Strategic direction: {email_angle}\n"
-            f"Core message: {key_message}\n"
-            f"Campaign task: {copy_task}\n\n"
-            f"Step 1 — Write a shared subject line and core email body (2-3 paragraphs) that works for all audiences.\n"
-            f"Step 2 — Write a short opening line variation for each audience listed below. "
-            f"This replaces only the first sentence of the email for each audience. Everything else stays the same.\n\n"
-            f"Audience variations needed:\n{audience_prompts}\n\n"
-            f"Format exactly like this:\n"
+            f"Write a short promotional email. 3 paragraphs, 2-3 sentences each.\n\n"
+            f"Context: {highlights} {conditions}\n"
+            f"Direction: {email_angle}\n"
+            f"Message: {key_message}\n"
+            f"Task: {copy_task}\n\n"
+            f"Then write one opening line variation for each audience below.\n"
+            f"These replace only the first sentence of the email:\n\n"
+            f"{audience_prompts}\n\n"
+            f"Format:\n"
             f"EMAIL SUBJECT: ...\n"
             f"EMAIL BODY: ...\n"
             f"{audience_labels}"
         ),
-        max_tokens=2048
+        max_tokens=1200
     )
 
     subject = parse_field(output, 'EMAIL SUBJECT')
@@ -246,7 +223,6 @@ def copywriter_agent(copy_task, email_angle, key_message, conditions, highlights
 
     print(f"Subject: {subject}")
     print(f"Body preview: {body[:150]}...")
-
     return subject, body, versions
 
 
@@ -254,18 +230,16 @@ def critic_agent(brief, subject, body):
     print(f"\nCritic Agent reviewing...")
 
     output = call_claude(
-        "You are a senior marketing director. One sentence per field. Plain text only.",
+        "Senior marketing director. One sentence per field. Plain text only.",
         (
-            f"Review this email. One sentence per field.\n\n"
-            f"Brief summary: {brief[:200]}\n"
+            f"Review this email. One sentence each.\n\n"
             f"Subject: {subject}\n"
-            f"Email opening: {body[:300]}\n\n"
-            f"Format exactly like this:\n"
+            f"Email: {body[:400]}\n\n"
             f"SCORE: X/10\n"
-            f"STRENGTHS: One sentence.\n"
-            f"IMPROVEMENTS: One sentence."
+            f"STRENGTHS: ...\n"
+            f"IMPROVEMENTS: ..."
         ),
-        max_tokens=150
+        max_tokens=120
     )
 
     score = parse_field(output, 'SCORE')
@@ -273,9 +247,6 @@ def critic_agent(brief, subject, body):
     improvements = parse_field(output, 'IMPROVEMENTS')
 
     print(f"Score: {score}")
-    print(f"Strengths: {strengths}")
-    print(f"Improvements: {improvements}")
-
     return score, strengths, improvements
 
 
@@ -328,6 +299,17 @@ if __name__ == "__main__":
     print(f"\nAUDIENCE VARIATIONS:")
     for audience, version in result['versions'].items():
         print(f"\n{audience}: {version}")
-    print(f"\nCRITIC SCORE: {result['score']}")
-    print(f"STRENGTHS: {result['strengths']}")
-    print(f"IMPROVEMENTS: {result['improvements']}")
+    print(f"\nKEY MESSAGE: {result['message']}")
+    print(f"\nCHANNEL ANGLES:")
+    print(f"Email: {result['email_angle']}")
+    print(f"Social: {result['social_angle']}")
+    print(f"Direct Mail: {result['mail_angle']}")
+    print(f"SMS: {result['sms_angle']}")
+    print(f"\nRESEARCH:")
+    print(f"Conditions: {result['conditions']}")
+    print(f"Highlights: {result['highlights']}")
+    print(f"Advisories: {result['advisories']}")
+    print(f"Sentiment: {result['sentiment']}")
+    print(f"\nCRITIC: {result['score']}")
+    print(f"Strengths: {result['strengths']}")
+    print(f"Improvements: {result['improvements']}")
