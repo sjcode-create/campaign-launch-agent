@@ -207,6 +207,7 @@ def copywriter_agent(copy_task, email_angle, key_message, conditions, highlights
             "- Never use: set sail, dream vacation, adventure awaits, once in a lifetime\n"
             "- Always use the exact year from the brief. Never substitute a different year.\n"
             "- Subject line: emotionally clear and complete. Grammatically correct. Makes sense read alone by a stranger with zero context. Never ambiguous, suggestive, or something that could be misread as sexual or inappropriate.\n"
+            "- Never mention specific ship names like Wind Surf, Wind Star, Wind Spirit, or any other vessel name unless the brief explicitly names the ship. Only reference ships generically as 'our ship' or 'a small ship'.\n"
             "- Plain text only, no markdown, no dashes, no bullet points."
         ),
         (
