@@ -43,17 +43,18 @@ def orchestrator(brief):
     print(f"\nOrchestrator reading brief...")
 
     output = call_claude(
-        "You are a campaign orchestrator. Read carefully and only identify audiences explicitly mentioned.",
+        "You are a campaign orchestrator. Read carefully and identify audiences based on what the brief says.",
         (
-            f"Read this brief carefully and give me 3 things:\n\n"
+            f"Read this brief and identify which audiences are targeted.\n\n"
             f"COPY TASK: One sentence on what copy needs to be written.\n"
             f"STRATEGY TASK: One sentence on what strategy needs to be defined.\n"
-            f"AUDIENCES: Only list audiences explicitly mentioned or clearly implied in the brief. "
-            f"Options are: Prospects (new customers), YCM (past guests / Yacht Club Members), Travel Advisors. "
-            f"If the brief is about past guests or lapsed guests, list only YCM. "
-            f"If it mentions travel advisors or trade partners, add Travel Advisors. "
-            f"If it mentions new customer acquisition or prospects, add Prospects. "
-            f"Do not add audiences that are not mentioned.\n\n"
+            f"AUDIENCES: Choose from: Prospects, YCM, Travel Advisors.\n"
+            f"Rules:\n"
+            f"- If the brief explicitly targets past guests, lapsed guests, returning guests, or YCM only: list only YCM.\n"
+            f"- If the brief explicitly targets new customers or prospects only: list only Prospects.\n"
+            f"- If the brief explicitly targets travel advisors only: list only Travel Advisors.\n"
+            f"- If the brief mentions a specific combination: list those exact audiences.\n"
+            f"- If the brief is general and does not specify an audience: list all three: Prospects, YCM, Travel Advisors.\n\n"
             f"Brief: {brief}\n\n"
             f"Format:\n"
             f"COPY TASK: ...\n"
@@ -75,7 +76,7 @@ def orchestrator(brief):
     if 'travel advisor' in audiences_raw or 'trade' in audiences_raw or 'agent' in audiences_raw:
         audiences.append('Travel Advisors')
     if not audiences:
-        audiences = ['YCM']
+        audiences = ['Prospects', 'YCM', 'Travel Advisors']
 
     print(f"Audiences: {audiences}")
     return copy_task, strategy_task, audiences
@@ -117,7 +118,7 @@ def researcher_agent(brief):
             f"ACTUAL CONDITIONS: One sentence on the actual climate at the destination during the travel months. "
             f"Use well-known facts about this region if the data is unreliable.\n"
             f"EXPERIENTIAL HIGHLIGHTS: One sentence on what makes this destination special this season.\n"
-            f"TRAVEL ADVISORIES: 2-3 sentences. Be specific about any political instability, regional conflicts, "
+            f"TRAVEL ADVISORIES: 2-3 sentences. Cover any political instability, regional conflicts, "
             f"overtourism restrictions, port regulations, or news that could make the campaign tone-deaf or create reputational risk. "
             f"If none apply, say so briefly.\n"
             f"TRAVELER SENTIMENT: One sentence on what travelers are saying.\n\n"
@@ -149,7 +150,7 @@ def strategist_agent(strategy_task, conditions, highlights, sentiment, brief):
     output = call_claude(
         "Marketing strategist for luxury travel. One sentence per field. No dashes. Plain text only.",
         (
-            f"One sentence per field. Critical: use the exact year stated in the brief. Do not use any other year.\n\n"
+            f"One sentence per field. Use the exact year stated in the brief. Do not use any other year.\n\n"
             f"Context: {highlights} {sentiment}\n"
             f"Brief: {brief[:400]}\n"
             f"Task: {strategy_task}\n\n"
@@ -184,7 +185,7 @@ def copywriter_agent(copy_task, email_angle, key_message, conditions, highlights
     if 'YCM' in audiences:
         audience_instructions.append("YCM VERSION: One opening line only. Make them feel genuinely remembered by people, not a system.")
     if 'Travel Advisors' in audiences:
-        audience_instructions.append("TRAVEL ADVISORS VERSION: Write exactly this placeholder: [TRAVEL ADVISOR HEADER GOES HERE] — then skip a line and continue with the same email body as the other versions.")
+        audience_instructions.append("TRAVEL ADVISORS VERSION: Write exactly this and nothing else: [TRAVEL ADVISOR HEADER GOES HERE]")
 
     audience_prompts = "\n".join(audience_instructions)
 
