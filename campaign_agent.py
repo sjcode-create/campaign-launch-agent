@@ -206,7 +206,7 @@ def copywriter_agent(copy_task, email_angle, key_message, conditions, highlights
             "- Never use dashes of any kind anywhere in the email.\n"
             "- Never use: set sail, dream vacation, adventure awaits, once in a lifetime\n"
             "- Always use the exact year from the brief. Never substitute a different year.\n"
-            "- Subject line: emotionally clear, no geography lesson required. Can be one or two sentences but every sentence must be grammatically complete. Never write a fragment.\n"
+            "- Subject line: emotionally clear and complete. Grammatically correct. Makes sense read alone by a stranger with zero context. Never ambiguous, suggestive, or something that could be misread as sexual or inappropriate.\n"
             "- Plain text only, no markdown, no dashes, no bullet points."
         ),
         (
